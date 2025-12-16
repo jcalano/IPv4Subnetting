@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Understanding IPv4 Subnetting & VLSM</title>
+  <style id="themeStyles">
+    :root {
+      --bg-page: #f9f9f9;
+      --bg-card: white;
+      --text-main: #333;
+      --text-head: #005a9c;
+      --border: #999;
+      --accent-bg: #e6f7ff;
+      --success-bg: #e8f5e9;
+      --warn-bg: #e8f5f5;
+      --warn-border: #00796b;
+      --btn-bg: #005a9c;
+      --btn-hover: #003f6e;
+      --shadow: rgba(0,0,0,0.05);
+      --input-bg: white;
+      --input-text: #333;
+    }
+    .dark-mode {
+      --bg-page: #121212;
+      --bg-card: #1e1e1e;
+      --text-main: #e0e0e0;
+      --text-head: #64b5f6;
+      --border: #444;
+      --accent-bg: #1a237e;
+      --success-bg: #1b5e20;
+      --warn-bg: #263238;
+      --warn-border: #80cbc4;
+      --btn-bg: #1976d2;
+      --btn-hover: #0d47a1;
+      --shadow: rgba(0,0,0,0.3);
+      --input-bg: #2c2c2c;
+      --input-text: #ffffff;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.6;
+    }
+    h1, h2, h3, h4 {
+      color: var(--text-head);
+    }
+    .lesson-section {
+      background: var(--bg-card);
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px var(--shadow);
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    button {
+      margin: 10px 5px;
+      padding: 8px 16px;
+      background: var(--btn-bg);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: var(--btn-hover);
+    }
+    .octet-header, .octet-values {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    .cell {
+      width: 40px;
+      text-align: center;
+      padding: 8px;
+      border: 1px solid var(--border);
+      background: #f0f8ff;
+      cursor: pointer;
+      color: var(--text-main);
+    }
+    .dark-mode .cell {
+      background: #2c2c2c;
+    }
+    .cell:hover {
+      background: #cce5ff;
+    }
+    .dark-mode .cell:hover {
+      background: #3a3a3a;
+    }
+    .example-box {
+      background: var(--accent-bg);
+      padding: 12px;
+      border-left: 4px solid var(--text-head);
+      margin: 15px 0;
+      color: var(--text-main);
+    }
+    .steps {
+      background: var(--warn-bg);
+      padding: 12px;
+      border-left: 4px solid var(--warn-border);
+      margin: 15px 0;
+      color: var(--text-main);
+    }
+    .step-box {
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.9em;
+      line-height: 1.4;
+      color: #333;
+    }
+    .step-box:nth-child(1) { background: #e8f5e9; }
+    .step-box:nth-child(2) { background: #e3f2fd; }
+    .step-box:nth-child(3) { background: #fce4ec; }
+    .step-box:nth-child(4) { background: #fff3e0; }
+    .step-box:nth-child(5) { background: #fff8e1; }
+    .step-box:nth-child(6) { background: #ede7f6; }
+    .step-box:nth-child(7) { background: #b3e5fc; }
+    .step-box:nth-child(8) { background: #dcedc8; }
+
+    .allocation-table {
+      background: #e8f5e9;
+      color: #333;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 15px 0;
+    }
+    .allocation-table th,
+    .allocation-table td {
+      border: 1px solid #999;
+      padding: 8px;
+      text-align: center;
+    }
+    .allocation-table th {
+      background: #bbdefb;
+      font-weight: bold;
+    }
+    .dark-mode .allocation-table {
+      background: #2c2c2c;
+      color: #ffffff;
+    }
+    .dark-mode .allocation-table th {
+      background: #1a1a1a;
+    }
+
+    .vlsm-diagram {
+      background: #001f3f;
+      color: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .vlsm-diagram h4 {
+      color: #64b5f6;
+      margin-top: 0;
+    }
+    .subnet-block-visual {
+      display: inline-block;
+      width: 215px;
+      height: 80px;
+      text-align: center;
+      padding: 8px;
+      margin: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.8em;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      color: #333;
+    }
+    .subnet-block-visual:nth-child(1) { background: #bbdefb; }
+    .subnet-block-visual:nth-child(2) { background: #f3e5f5; }
+    .subnet-block-visual:nth-child(3) { background: #c8e6c9; }
+    .subnet-block-visual:nth-child(4) { background: #ffecb3; }
+    .subnet-block-visual:nth-child(5) { background: #ffccbc; }
+    .subnet-block-visual:nth-child(6) { background: #d1c4e9; }
+
+    .unused-space {
+      display: inline-block;
+      width: 215px;
+      height: 80px;
+      text-align: center;
+      padding: 8px;
+      margin: 8px;
+      background: #f0f0f0;
+      color: #666;
+      border: 1px dashed #999;
+      border-radius: 4px;
+      font-size: 0.8em;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    input[type="text"], input[type="number"] {
+      padding: 6px;
+      width: 100px;
+      text-align: center;
+      margin: 0 8px;
+      background: var(--input-bg);
+      color: var(--input-text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { border: 1px solid var(--border); padding: 6px; text-align: center; color: var(--text-main); }
+    th { background: var(--accent-bg); }
+    .toc {
+      background: var(--accent-bg);
+      padding: 10px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .toc a {
+      color: var(--text-head);
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    .toc a:hover {
+      text-decoration: underline;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; color: black; }
+      .lesson-section { box-shadow: none; border: 1px solid #ccc; }
+      input, button { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>Understanding IPv4 Subnetting & VLSM</h1>
+  <button id="themeToggle" class="no-print">🌙 Dark Mode</button>
+</div>
+
+<div class="toc no-print">
+  <strong>Jump to:</strong>
+  <a href="#part1">Part 1: Subnetting</a>
+  <a href="#part2">Part 2: VLSM</a>
+</div>
+
+<!-- ====================== PART 1: SUBNETTING ====================== -->
+<h2 id="part1">Part 1: Understanding IPv4 Subnetting</h2>
+
+<div class="lesson-section">
+  <h3>What We Will Learn</h3>
+  <ul>
+    <li>Numbering systems: Decimal and Binary</li>
+    <li>IPv4 Addressing: Bit structure, octets</li>
+    <li>Octet Chart</li>
+    <li>Number system conversion</li>
+  </ul>
+</div>
+
+<div class="lesson-section">
+  <h3>How We Count: Decimal System</h3>
+  <p>We use 10 symbols: 0 through 9. Each position increases by powers of 10.</p>
+  <div class="example-box">125 = 1×100 + 2×10 + 5×1</div>
+</div>
+
+<div class="lesson-section">
+  <h3>Binary Counting Basics</h3>
+  <p>Binary uses only two symbols: 0 and 1. Positions represent powers of 2.</p>
+  <div class="octet-header">
+    <div class="cell">128</div><div class="cell">64</div><div class="cell">32</div><div class="cell">16</div>
+    <div class="cell">8</div><div class="cell">4</div><div class="cell">2</div><div class="cell">1</div>
+  </div>
+  <div class="octet-values">
+    <div class="cell">0</div><div class="cell">0</div><div class="cell">0</div><div class="cell">0</div>
+    <div class="cell">0</div><div class="cell">1</div><div class="cell">1</div><div class="cell">0</div>
+  </div>
+  <div class="example-box">00000110 = 4 + 2 = 6</div>
+</div>
+
+<!-- Interactive Octet Chart -->
+<div class="lesson-section">
+  <h3>Build Your Own Octet</h3>
+  <p>Click any bit below to toggle between 0 and 1. Total updates instantly.</p>
+  <div class="octet-header">
+    <div class="cell">128</div><div class="cell">64</div><div class="cell">32</div><div class="cell">16</div>
+    <div class="cell">8</div><div class="cell">4</div><div class="cell">2</div><div class="cell">1</div>
+  </div>
+  <div class="octet-values" id="octetBits"></div>
+  <div class="example-box">
+    <strong>Current Value:</strong> <span id="octetTotal">0</span>
+  </div>
+</div>
+
+<!-- Decimal to Binary Step-by-Step -->
+<div class="lesson-section">
+  <h3>Convert Decimal to Binary – Step by Step</h3>
+  <p>As in your slides: “178 ≥ 128 → 1, remainder 50 → 50 < 64 → 0, etc.”</p>
+  <div class="interactive">
+    <input type="number" id="decToConvert" min="0" max="255" value="178">
+    <button onclick="stepDecToBin()">Show Steps</button>
+    <div id="decSteps" class="steps"></div>
+    <div id="decResult" class="example-box"></div>
+  </div>
+</div>
+
+<!-- Binary to Decimal Step-by-Step -->
+<div class="lesson-section">
+  <h3>Convert Binary to Decimal – Step by Step</h3>
+  <p>“A ‘1’ means add the value; a ‘0’ means add 0.”</p>
+  <div class="interactive">
+    <input type="text" id="binInput" placeholder="e.g., 10101011" maxlength="8">
+    <button onclick="stepBinToDec()">Show Steps</button>
+    <div id="binSteps" class="steps"></div>
+    <div id="binResult" class="example-box"></div>
+  </div>
+</div>
+
+<!-- IPv4 Example: 184.22.195.87 -->
+<div class="lesson-section">
+  <h3>IPv4 Address: 184.22.195.87 → Binary</h3>
+  <p>Let’s convert each octet using the chart:</p>
+  <div class="example-box">
+    <code>184 → 10111000</code><br>
+    <code>22  → 00010110</code><br>
+    <code>195 → 11000011</code><br>
+    <code>87  → 01010111</code>
+  </div>
+</div>
+
+<!-- Subnetting: Visual Recap -->
+<div class="lesson-section">
+  <h3>Visual Recap: Subnet Breakdown</h3>
+  <p>Original Network: <code>192.168.1.0/24</code> → divided into 4 /26 subnets:</p>
+  <ul>
+    <li><code>192.168.1.0/26</code> → .1 to .62</li>
+    <li><code>192.168.1.64/26</code> → .65 to .126</li>
+    <li><code>192.168.1.128/26</code> → .129 to .190</li>
+    <li><code>192.168.1.192/26</code> → .193 to .254</li>
+  </ul>
+  <button onclick="showSubnets()" class="no-print">Show Subnet Blocks</button>
+  <div id="subnetBlocks" style="margin-top:15px;"></div>
+</div>
+
+<!-- CIDR Quick Reference -->
+<div class="lesson-section">
+  <h3>CIDR Quick Reference</h3>
+  <table>
+    <tr><th>CIDR</th><th>Mask</th><th>Usable Hosts</th><th>Use Case</th></tr>
+    <tr><td>/30</td><td>255.255.255.252</td><td>2</td><td>Point-to-point</td></tr>
+    <tr><td>/29</td><td>255.255.255.248</td><td>6</td><td>Firewalls/DMZ</td></tr>
+    <tr><td>/28</td><td>255.255.255.240</td><td>14</td><td>VLANs/Labs</td></tr>
+    <tr><td>/26</td><td>255.255.255.192</td><td>62</td><td>Small LAN</td></tr>
+    <tr><td>/24</td><td>255.255.255.0</td><td>254</td><td>Standard LAN</td></tr>
+    <tr><td>/16</td><td>255.255.0.0</td><td>65,534</td><td>Enterprise</td></tr>
+  </table>
+</div>
+
+<!-- Quiz: Can You Convert These? -->
+<div class="lesson-section">
+  <h3>Can You Convert These?</h3>
+  <ol>
+    <li>Convert <code>10.0.0.129</code> to binary (first octet): <input type="text" id="q1" placeholder="00000000"></li>
+    <li>Convert <code>11000000</code> to decimal: <input type="number" id="q2" placeholder="?"></li>
+    <li>Subnet mask for <code>/27</code>: <input type="text" id="q3" placeholder="255.255.255.255"></li>
+    <li>Usable hosts in <code>/29</code>: <input type="number" id="q4" placeholder="?"></li>
+    <li>Broadcast for <code>192.168.1.64/26</code>: <input type="text" id="q5" placeholder="0.0.0.0"></li>
+  </ol>
+  <button onclick="checkQuiz()">Check Answers</button>
+  <div id="quizFeedback" class="example-box" style="display:none;"></div>
+
+  <div class="interactive" style="margin-top:20px;">
+    <p><strong>Want more practice?</strong> Click below for a random IPv4 address to convert:</p>
+    <button onclick="showRandomIP()">🔀 Show Random IP</button>
+    <div id="randomIPPractice" class="example-box" style="display:none; margin-top:15px;">
+      <p><strong>Convert this IP to binary:</strong> <code id="randomIPDisplay"></code></p>
+      <div style="display:flex; justify-content:space-between; margin:10px 0;">
+        <input type="text" id="b1" placeholder="Octet 1" maxlength="8" oninput="validateInputs()">
+        <input type="text" id="b2" placeholder="Octet 2" maxlength="8" oninput="validateInputs()">
+        <input type="text" id="b3" placeholder="Octet 3" maxlength="8" oninput="validateInputs()">
+        <input type="text" id="b4" placeholder="Octet 4" maxlength="8" oninput="validateInputs()">
+      </div>
+      <button id="checkConversionBtn" onclick="checkRandomIPConversion()" disabled>Check Conversion</button>
+      <div id="conversionFeedback" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================== PART 2: VLSM ====================== -->
+<h2 id="part2">Part 2: Variable Length Subnet Masking (VLSM)</h2>
+
+<div class="lesson-section">
+  <h3>Why VLSM?</h3>
+  <p>Basic subnetting creates <strong>equal-sized</strong> subnets. But real networks have <strong>unequal needs</strong>.</p>
+  <div class="example-box">
+    <strong>Example:</strong> You have <code>192.168.1.0/24</code> (254 usable hosts).<br>
+    Departments need:<br>
+    • Sales: 60 hosts<br>
+    • HR: 30 hosts<br>
+    • Printers: 10 hosts<br>
+    • WAN link: 2 hosts<br><br>
+    Without VLSM, you’d waste addresses. With VLSM, you use <strong>exactly what you need</strong>.
+  </div>
+</div>
+
+<div class="lesson-section">
+  <h3>VLSM Design Rules</h3>
+  <ol>
+    <li><strong>Sort requirements from largest to smallest</strong></li>
+    <li><strong>Allocate the largest subnet first</strong></li>
+    <li><strong>Each subnet must start on a CIDR boundary</strong></li>
+    <li><strong>No overlapping subnets!</strong></li>
+  </ol>
+</div>
+
+<!-- VLSM Planner -->
+<div class="lesson-section">
+  <h3>VLSM Planner</h3>
+  <p>Enter your host requirements (largest first). We’ll allocate subnets from <code>192.168.10.0/24</code>.</p>
+  <div>
+    <label>Hosts needed (comma-separated):</label><br>
+    <input type="text" id="hostList" placeholder="?,?,?,..." style="width:300px;">
+    <button onclick="calculateVLSM()">Plan Subnets</button>
+  </div>
+  <div id="vlsmResult" class="example-box" style="display:none;"></div>
+</div>
+
+<!-- Student VLSM Practice -->
+<div class="lesson-section">
+  <h3>VLSM Design Practice</h3>
+  <p>Design your own subnet plan! Enter a base network and your requirements.</p>
+  <div style="margin:15px 0;">
+    <label>Base Network (CIDR):</label><br>
+    <input type="text" id="baseNetwork" placeholder="e.g., 192.168.10.0/24" value="x.x.x.x/x" style="width:200px;">
+  </div>
+  <div style="margin:15px 0;">
+    <label>Hosts needed per subnet (comma-separated):</label><br>
+    <input type="text" id="studentHosts" placeholder="?,?,..." style="width:300px;">
+  </div>
+  <button onclick="runStudentVLSM()">Plan My Subnets</button>
+  <div id="studentResult" class="example-box" style="display:none; margin-top:15px;"></div>
+  <div class="interactive" style="margin-top:15px;">
+    <button onclick="showVLSMSteps()">📘 Show Allocation Steps</button>
+    <div id="vlsmSteps" class="steps" style="display:none;"></div>
+  </div>
+  <!-- VLSM Allocation Diagram -->
+  <div id="vlsmDiagram" class="example-box" style="display:none; margin-top:15px;">
+    <h4>VLSM Allocation Diagram</h4>
+    <div id="subnetBlocksVisual" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;"></div>
+  </div>
+</div>
+
+<div class="lesson-section">
+  <h3>What You Now Understand</h3>
+  <ul>
+    <li>Decimal and binary number systems</li>
+    <li>IPv4 structure and conversion</li>
+    <li>Subnetting with CIDR</li>
+    <li>Efficient IP allocation with VLSM</li>
+    <li>How to design IP address schemes for real-world networks</li>
+  </ul>
+</div>
+
+<!-- ✅ Print button moved just before MIT License -->
+<div class="lesson-section no-print">
+  <h3>Print Lesson Summary</h3>
+  <p>Click below to print or save as PDF.</p>
+  <button onclick="window.print()">🖨️ Print Cheat Sheet</button>
+</div>
+
+<!-- ✅ MIT License (8pt font) -->
+<div class="lesson-section" style="margin-top: 40px; text-align: center; font-size: 8pt; color: var(--text-main);">
+  <h3>License</h3>
+  <p>
+    <strong>Understanding IPv4 Subnetting & VLSM</strong> is licensed under the MIT License.<br><br>
+    Copyright © 2025 <a href="https://github.com/jcalano" style="color: var(--text-head);">jcalano</a><br><br>
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:<br><br>
+    The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.<br><br>
+    THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  </p>
+</div>
+
+<!-- Back to Top Button -->
+<button id="backToTop" class="no-print" style="
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 8px 12px;
+  background: var(--btn-bg);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: none;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+"> ↑ Top </button>
+
+<script>
+  // ====== GLOBAL STATE ======
+  const powers = [128, 64, 32, 16, 8, 4, 2, 1];
+  let bits = [0,0,0,0,0,0,0,0];
+  let currentRandomIP = [];
+
+  // ====== DARK MODE ======
+  document.getElementById('themeToggle')?.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = document.body.classList.contains('dark-mode') ? '☀️ Light Mode' : '🌙 Dark Mode';
+  });
+
+  // ====== BACK TO TOP ======
+  const backToTopButton = document.getElementById('backToTop');
+  if (backToTopButton) {
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 300) backToTopButton.style.display = 'block';
+      else backToTopButton.style.display = 'none';
+    });
+    backToTopButton.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  }
+
+  // ====== SUBNETTING FUNCTIONS ======
+  function initOctet() {
+    const container = document.getElementById('octetBits');
+    if (!container) return;
+    container.innerHTML = '';
+    bits.forEach((bit, i) => {
+      const div = document.createElement('div');
+      div.className = 'cell';
+      div.textContent = bit;
+      div.onclick = () => { bits[i] = bits[i] === 0 ? 1 : 0; initOctet(); };
+      container.appendChild(div);
+    });
+    updateTotal();
+  }
+
+  function updateTotal() {
+    document.getElementById('octetTotal').textContent = bits.reduce((sum, bit, i) => sum + (bit * powers[i]), 0);
+  }
+
+  function stepDecToBin(){
+    let num=parseInt(document.getElementById('decToConvert')?.value);
+    if(isNaN(num)||num<0||num>255){alert('0–255');return;}
+    let rem=num,steps=[],binary='';
+    for(let p of powers){
+      if(rem>=p){steps.push(`${rem} ≥ ${p} → 1, remainder ${rem-p}`);binary+='1';rem-=p;}
+      else{steps.push(`${rem} < ${p} → 0`);binary+='0';}
+    }
+    document.getElementById('decSteps').innerHTML='<strong>Steps:</strong><br>'+steps.join('<br>');
+    document.getElementById('decResult').innerHTML=`<strong>Result:</strong> ${num} → <code>${binary}</code>`;
+  }
+
+  function stepBinToDec(){
+    const input=document.getElementById('binInput')?.value?.trim();
+    if(!/^[01]{8}$/.test(input)){alert('8 bits');return;}
+    let total=0,steps=[];
+    for(let i=0;i<8;i++){
+      const bit=parseInt(input[i]),val=powers[i];
+      if(bit===1){steps.push(`Bit ${i+1}: 1 → add ${val}`);total+=val;}
+      else steps.push(`Bit ${i+1}: 0 → add 0`);
+    }
+    document.getElementById('binSteps').innerHTML='<strong>Steps:</strong><br>'+steps.join('<br>');
+    document.getElementById('binResult').innerHTML=`<strong>Result:</strong> ${input}₂ = ${total}₁₀`;
+  }
+
+  function showSubnets(){
+    const blocks=[{n:'192.168.1.0',r:'.1 – .62',b:'.63'},{n:'192.168.1.64',r:'.65 – .126',b:'.127'},{n:'192.168.1.128',r:'.129 – .190',b:'.191'},{n:'192.168.1.192',r:'.193 – .254',b:'.255'}];
+    let html='<div style="text-align:center;">';
+    blocks.forEach(b=>html+=`<div class="subnet-block-visual" style="height:70px;"><strong>${b.n}/26</strong><br>Usable: ${b.r}<br>Broadcast: ${b.b}</div>`);
+    document.getElementById('subnetBlocks').innerHTML=html+'</div>';
+  }
+
+  function checkQuiz(){
+    const a1=document.getElementById('q1')?.value?.trim()==='00001010';
+    const a2=parseInt(document.getElementById('q2')?.value)===192;
+    const a3=document.getElementById('q3')?.value?.trim()==='255.255.255.224';
+    const a4=parseInt(document.getElementById('q4')?.value)===6;
+    const a5=document.getElementById('q5')?.value?.trim()==='192.168.1.127';
+    let f='';
+    if(a1&&a2&&a3&&a4&&a5)f='🎉 Perfect!';
+    else f=`${a1?'✅ Q1':'❌ Q1: 10 → 00001010'}<br>${a2?'✅ Q2':'❌ Q2: 11000000 = 192'}<br>${a3?'✅ Q3':'❌ Q3: /27 = 255.255.255.224'}<br>${a4?'✅ Q4':'❌ Q4: /29 → 2³−2 = 6'}<br>${a5?'✅ Q5':'❌ Q5: broadcast = .127'}`;
+    const el=document.getElementById('quizFeedback');
+    if(el){el.innerHTML=f;el.style.display='block';}
+  }
+
+  function showRandomIP(){
+    let ip;
+    do{
+      const f=Math.floor(Math.random()*223)+1;
+      if(f===127)continue;
+      ip=[f,Math.floor(Math.random()*256),Math.floor(Math.random()*256),Math.floor(Math.random()*254)+1];
+    }while(ip[0]>=224||ip[0]===127);
+    currentRandomIP=ip;
+    document.getElementById('randomIPDisplay').textContent=ip.join('.');
+    document.getElementById('randomIPPractice').style.display='block';
+    ['b1','b2','b3','b4'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('conversionFeedback').innerHTML='';
+    document.getElementById('b1').focus();
+  }
+
+  function validateInputs(){
+    const allValid=['b1','b2','b3','b4'].every(id=>/^[01]{8}$/.test(document.getElementById(id)?.value));
+    document.getElementById('checkConversionBtn').disabled=!allValid;
+  }
+
+  function checkRandomIPConversion(){
+    let f='',ok=true;
+    for(let i=0;i<4;i++){
+      const el=document.getElementById(['b1','b2','b3','b4'][i]),bin=el?.value.trim(),exp=currentRandomIP[i].toString(2).padStart(8,'0');
+      if(bin===exp)f+=`<div>✅ Octet ${i+1}: ${currentRandomIP[i]} → ${exp}</div>`;
+      else{f+=`<div>❌ Octet ${i+1}: ${currentRandomIP[i]} → should be <code>${exp}</code></div>`;ok=false;}
+    }
+    if(ok)f='<div style="color:green; font-weight:bold;">🎉 Perfect!</div>'+f;
+    document.getElementById('conversionFeedback').innerHTML=f;
+  }
+
+  // ====== VLSM HELPER FUNCTIONS ======
+  function parseNetwork(s) {
+    const [ip,cidrStr]=s.trim().split('/');
+    const cidr=parseInt(cidrStr);
+    if(!ip||isNaN(cidr)||cidr<0||cidr>32)return null;
+    const p=ip.split('.').map(Number);
+    if(p.length!==4||p.some(x=>x<0||x>255))return null;
+    return{ip,cidr};
+  }
+
+  function hostsToCidr(h) {
+    if(h<=0)return 32;
+    return 32-Math.ceil(Math.log2(h+2));
+  }
+
+  function ipToInt(ip) {
+    const parts = ip.split('.').map(Number);
+    return (parts[0] << 24) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
+  }
+
+  function intToIp(num) {
+    num = num >>> 0;
+    return [
+      (num >> 24) & 0xFF,
+      (num >> 16) & 0xFF,
+      (num >> 8) & 0xFF,
+      num & 0xFF
+    ].join('.');
+  }
+
+  function ipAdd(ip, num) {
+    return intToIp(ipToInt(ip) + num);
+  }
+
+  function cidrToMask(cidr) {
+    let m='',b=cidr;
+    for(let i=0;i<4;i++){let bits=Math.min(b,8);m+=(0xFF<<(8-bits))&0xFF;b-=bits;if(i<3)m+='.';}return m;
+  }
+
+  // ====== VLSM FUNCTIONS ======
+  function calculateVLSM() {
+    let hosts=document.getElementById('hostList')?.value?.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x)&&x>0);
+    if(!hosts||hosts.length===0){alert('Enter valid host numbers');return;}
+    hosts.sort((a,b)=>b-a);
+    let ip='192.168.10.0',r=[];
+    for(let h of hosts){
+      let c=hostsToCidr(h),bs=2**(32-c);
+      let n=ip,b=ipAdd(ip,bs-1),f=ipAdd(ip,1),l=ipAdd(ip,bs-2),m=cidrToMask(c);
+      r.push({h,c,n,m,range:`${f} – ${l}`,b});
+      ip=ipAdd(ip,bs);
+    }
+    let html=`<div class="allocation-table"><strong>VLSM Plan for 192.168.10.0/24</strong><br><table><tr><th>Hosts</th><th>Subnet</th><th>Mask</th><th>Usable Range</th><th>Broadcast</th></tr>`;
+    r.forEach(x=>html+=`<tr><td>${x.h}</td><td>${x.n}/${x.c}</td><td>${x.m}</td><td>${x.range}</td><td>${x.b}</td></tr>`);
+    document.getElementById('vlsmResult').innerHTML=html+'</table></div>';
+    document.getElementById('vlsmResult').style.display='block';
+  }
+
+  function runStudentVLSM() {
+    const net=parseNetwork(document.getElementById('baseNetwork')?.value);
+    if(!net){showStudentResult('❌ Invalid base network.');return;}
+    let hosts=document.getElementById('studentHosts')?.value?.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x)&&x>0);
+    if(!hosts||hosts.length===0){showStudentResult('❌ Enter valid hosts.');return;}
+    hosts.sort((a,b)=>b-a);
+    const total=2**(32-net.cidr);
+    let ip=net.ip,r=[],err='';
+    for(let h of hosts){
+      const c=hostsToCidr(h),bs=2**(32-c);
+      let val=ipToInt(ip);
+      if(val%bs!==0)val=Math.ceil(val/bs)*bs,ip=intToIp(val);
+      if(ipToInt(ip)-ipToInt(net.ip)+bs>total){err=`❌ Not enough space!`;break;}
+      if(bs-2<h){err=`❌ Impossible: ${h} hosts need > ${bs-2} usable.`;break;}
+      r.push({h,c,n:ip,m:cidrToMask(c),range:`${ipAdd(ip,1)} – ${ipAdd(ip,bs-2)}`,b:ipAdd(ip,bs-1),bs});
+      ip=ipAdd(ip,bs);
+    }
+    if(err)showStudentResult(err);
+    else{
+      let html=`<div class="allocation-table"><strong>Your VLSM Plan for ${net.ip}/${net.cidr}</strong><br><table><tr><th>Hosts</th><th>Subnet</th><th>Mask</th><th>Usable Range</th><th>Broadcast</th></tr>`;
+      r.forEach(x=>html+=`<tr><td>${x.h}</td><td>${x.n}/${x.c}</td><td>${x.m}</td><td>${x.range}</td><td>${x.b}</td></tr>`);
+      showStudentResult(html+'</table></div><p>✅ Success!</p>');
+
+      // ✅ Generate diagram with "Unused Space" details
+      generateVLSMDiagram(r, net);
+    }
+  }
+
+  function showStudentResult(html) {
+    const el=document.getElementById('studentResult');
+    if(el){el.innerHTML=html;el.style.display='block';}
+  }
+
+  function showVLSMSteps() {
+    const net=parseNetwork(document.getElementById('baseNetwork')?.value);
+    if(!net){return;}
+    let hosts=document.getElementById('studentHosts')?.value?.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x)&&x>0);
+    if(!hosts||hosts.length===0){return;}
+    hosts.sort((a,b)=>b-a);
+    const total=2**(32-net.cidr);
+    let ip=net.ip,s=[],err='';
+    for(let h of hosts){
+      const c=hostsToCidr(h),bs=2**(32-c);
+      let val=ipToInt(ip);
+      if(val%bs!==0)val=Math.ceil(val/bs)*bs,ip=intToIp(val);
+      if(ipToInt(ip)-ipToInt(net.ip)+bs>total){err='❌ Not enough space!';break;}
+      if(bs-2<h){err='❌ Impossible!';break;}
+      s.push({h,c,n:ip,m:cidrToMask(c),range:`${ipAdd(ip,1)} – ${ipAdd(ip,bs-2)}`,b:ipAdd(ip,bs-1),bs});
+      ip=ipAdd(ip,bs);
+    }
+    if(err){
+      document.getElementById('vlsmSteps').innerHTML=err;
+      document.getElementById('vlsmSteps').style.display='block';
+    }else{
+      let html='<strong>Step-by-Step VLSM Allocation:</strong><br>';
+      s.forEach((step,i)=>html+=`<div class="step-box"><strong>Step ${i+1}:</strong> Allocate ${step.h} hosts → ${step.n}/${step.c}<br>• Mask: ${step.m}<br>• Usable Range: ${step.range}<br>• Broadcast: ${step.b}<br>• Block Size: ${step.bs} addresses</div>`);
+      document.getElementById('vlsmSteps').innerHTML=html;
+      document.getElementById('vlsmSteps').style.display='block';
+      generateVLSMDiagram(s, net);
+    }
+  }
+
+  // ✅ FULLY WORKING DIAGRAM WITH "UNUSED SPACE" DETAILS
+  function generateVLSMDiagram(r, net) {
+    const container = document.getElementById('subnetBlocksVisual');
+    if (!container) return;
+    container.innerHTML = '';
+    r.forEach(step => {
+      const block = document.createElement('div');
+      block.className = 'subnet-block-visual';
+      block.innerHTML = `<strong>${step.n}/${step.c}</strong><br>${step.range}<br>(${step.h} hosts)`;
+      container.appendChild(block);
+    });
+    const totalSpace = Math.pow(2, 32 - net.cidr);
+    let currentIP = net.ip;
+    r.forEach(step => {
+      let val = ipToInt(currentIP);
+      const blockSize = step.bs;
+      if (val % blockSize !== 0) {
+        val = Math.ceil(val / blockSize) * blockSize;
+        currentIP = intToIp(val);
+      }
+      currentIP = ipAdd(currentIP, blockSize);
+    });
+    const remaining = totalSpace - (ipToInt(currentIP) - ipToInt(net.ip));
+    if (remaining > 0) {
+      const firstUnused = currentIP;
+      const lastUnused = ipAdd(net.ip, totalSpace - 1);
+      const emptyBlock = document.createElement('div');
+      emptyBlock.className = 'unused-space';
+      emptyBlock.innerHTML = `<strong>Unused Space</strong><br>${firstUnused} – ${lastUnused}<br>(${remaining} addresses)`;
+      container.appendChild(emptyBlock);
+    }
+    document.getElementById('vlsmDiagram').style.display = 'block';
+  }
+
+  // ====== INITIALIZE ======
+  initOctet();
+  stepDecToBin();
+</script>
+
+</body>
+</html>
